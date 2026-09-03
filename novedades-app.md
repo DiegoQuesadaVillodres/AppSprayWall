@@ -8,9 +8,18 @@ Actualizado el **12 de agosto de 2026**. App: **https://spraywall.nekoescalada.c
 
 Todo sale del feedback que nos pasasteis después de probarla.
 
-**1. Las presas ya no se tapan.** El marcador era un círculo puesto *encima* de la presa, y con presas
-juntas no se distinguía cuál estaba marcada. Ahora es una **chincheta**: la punta señala la presa
-exacta y el globo queda por encima, sin cubrirla. Además es más pequeño.
+**1. Las presas ya no se tapan: se iluminan.** El marcador era un círculo puesto *encima* de la
+presa, y con presas juntas no se distinguía cuál estaba marcada. Ahora el muro se oscurece y **cada
+presa del bloque queda iluminada con un aro de su color**, entera a la vista y sin nada encima.
+
+La app además **reconoce la presa en la foto** y ajusta la marca a su forma: lo normal es que el aro
+sea la **línea de su contorno**; cuando la foto no da para tanto sale un **aro ovalado** con su
+tamaño e inclinación, y en el peor caso el **aro redondo** de siempre. **Ninguna presa se queda
+nunca sin aro**: es preferible un círculo honesto a una línea en el sitio equivocado. Las que más se
+resisten son las de madera, las beige pegadas al panel y los volúmenes grandes. En el **editor** la
+marca es siempre redonda, a propósito: ahí lo que importa es marcar rápido.
+
+La **I** de inicio y la **T** de top van en un disquito pegado al aro, fuera de la luz.
 
 **2. La numeración es opcional, y viene apagada.** El orden de las presas lo decide quien escala, no
 quien monta el bloque. Al guardar un bloque hay un check **«Numerar las presas en orden»**:
