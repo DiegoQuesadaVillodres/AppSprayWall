@@ -96,16 +96,23 @@ Antes fue un pin con forma de gota, y antes un círculo centrado sobre la presa 
 zona sensible al toque no ha cambiado en ninguno de los dos cambios: sigue siendo el doble del radio
 original, para poder corregir con el dedo. Si no hay ninguna presa marcada, la foto se ve limpia.
 
-Al abrir un bloque, la app **detecta la silueta de cada presa** sobre la foto y la luz sigue su
-contorno en vez de ser un círculo: reescala la imagen en el navegador y va extendiendo una mancha
-desde el punto guardado mientras el color se parezca, comparando más el tono que el brillo para que
-las sombras del panel no se cuelen. No se guarda nada en la base de datos y no hay que marcar
-ningún contorno a mano.
+Al abrir un bloque, la app **reconoce cada presa** sobre la foto y ajusta la marca a su forma, sin
+que nadie tenga que dibujar contornos a mano. Va extendiendo una mancha desde el punto guardado
+mientras el color se parezca, y compara **el color casi sin mirar el brillo**: si mirara el brillo
+se pararía en la sombra de la propia presa y marcaría solo la mitad iluminada. Prueba hasta ocho
+combinaciones por presa y se queda con la primera limpia. No se guarda nada en la base de datos.
 
-> Cuando una presa no se puede distinguir del panel —madera sobre madera, gris sobre gris, una
-> sombra fuerte— se dibuja el claro redondo de siempre, sin aro. La presa nunca desaparece del
-> bloque. En el **editor** el claro es siempre redondo, a propósito: ahí lo que importa es marcar
-> rápido.
+Según lo que consigue reconocer, la marca es una de tres, siempre del color del tipo de presa:
+
+1. **La línea del contorno**, siguiendo la forma de la presa. Es el caso bueno: unas dos de cada
+   tres.
+2. **Un aro ovalado** del tamaño y la inclinación de la presa, cuando el contorno no sale limpio.
+3. **El aro redondo** de siempre, cuando la foto no da para más.
+
+> **Ninguna presa se queda nunca sin su aro de color.** Es la regla que manda sobre todo lo demás:
+> es preferible un círculo honesto a una línea que marque el sitio equivocado. Las que más se
+> resisten son las presas de madera, las beige pegadas al panel y los volúmenes muy grandes. En el
+> **editor** la marca es siempre redonda, a propósito: ahí lo que importa es marcar rápido.
 
 La **numeración es opcional** y viene desactivada: el orden de las presas lo decide quien escala.
 Hay un checkbox «Numerar las presas en orden» en la ficha del bloque (columna `boulders.numerar`).

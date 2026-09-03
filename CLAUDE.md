@@ -97,47 +97,65 @@ Tres cosas que no se ven a primera vista:
 
 La etiqueta (`I`/`T`/`IT` o el número de orden) va en un **disco pegado al aro a 45º**, fuera del
 claro, con el texto como `<text>` del SVG; su tope es el 60 % del diámetro del disco para que no
-desborde. Las presas de mano/pie no llevan disco. Cuando hay silueta el disco se pega a la esquina
-superior derecha de su rectángulo envolvente, no a los 45º del punto.
+desborde. Las presas de mano/pie no llevan disco.
 
-**El claro es redondo en el editor y sigue la silueta en el visor.** Lo decide la prop `siluetas`
-de `WallCanvas`, `false` por defecto: solo la pasa `/bloque/$boulderId`. Con ella,
-`src/lib/siluetas.ts` calcula el contorno de cada presa **en el navegador** y devuelve un polígono
-en coordenadas 0..1, que abre el claro en la `<mask>` (relleno, engrosado y desenfocado) y lleva
-encima el resplandor del color. El editor se queda con el círculo a propósito: ahí lo que importa
-es marcar rápido, no que quede bonito.
+**El claro es redondo en el editor y se ajusta a la presa en el visor.** Lo decide la prop `medir`
+de `WallCanvas`, `false` por defecto: solo la pasa `/bloque/$boulderId`. El editor se queda con el
+círculo a propósito: ahí lo que importa es marcar rápido.
 
-Cómo detecta: reescala la foto a 900 px de ancho en un canvas fuera de pantalla y hace crecimiento
-de región (BFS 4-conexo) desde el punto guardado, comparando color en YCbCr **con el croma pesando
-cuatro veces más que la luminancia** — si no, las sombras del panel se cuelan por el degradado.
-Luego cierre morfológico, seguimiento de borde de Moore y Douglas-Peucker hasta 56 puntos.
+`src/lib/medidas.ts` mide cada presa **en el navegador** (canvas de 900 px, coordenadas 0..1, nada
+guardado en la base de datos) y devuelve una **cascada de tres recursos**, en este orden:
 
-**Cinco descartes** evitan que la mancha se coma medio muro. Tres son geométricos: no salir de un
-cuadrado de `RADIO_MAX = 0.055` del ancho, descartar si toca el borde de ese cuadrado en más del
-35 % de su perímetro (`MAX_BORDE`), y descartar si el área es menor que el 0,15 % del cuadrado
-(`MIN_AREA`). Los otros dos se añadieron después de medir un bloque real, porque los geométricos
-dejaban pasar dos manchas de nueve:
+1. **Contorno**: el casco convexo de la región, como polígono de 13 a 23 vértices.
+2. **Elipse** por momentos de la región (centroide, covarianza, semiejes a 2 sigma y ángulo).
+3. **`null`**, y entonces el lienzo dibuja el círculo de `RADIO_FOCO` con su aro.
 
-- `MAX_AREA = 0.15` del cuadrado. Medido sobre las 10 presas de un bloque del Spray Wall: las
-  siluetas correctas ocupaban entre 213 y 872 px del cuadrado de 10 201, y la desbordada 3138.
-- `MIN_HOMOGENEIDAD = 0.85`. Sobre el polígono **ya simplificado**, muestrea una rejilla de 20x20 y
-  mide qué fracción de su interior sigue pareciéndose al color de referencia. Es el filtro que de
-  verdad importa, porque mide el defecto en vez de deducirlo del tamaño: caza los desbordes que
-  entran por un istmo estrecho, y también los que provoca el propio Douglas-Peucker cuando sube el
-  epsilon para bajar de 56 puntos y el polígono se aleja del contorno real. La mancha que se colaba
-  daba 0,77.
+**La regla que no se puede romper: ninguna presa se queda sin aro de color, nunca.** Ni cuando falla
+la detección ni mientras se calcula. Esa fue la queja real de la sala: la primera versión no dibujaba
+aro si no había silueta, y como las presas de mano tampoco llevan disco, se volvían invisibles.
 
-Cuatro cosas de las siluetas que conviene saber:
+Lo que costó encontrar: **los contornos se partían por el brillo, no por la tolerancia.** Una presa
+tiene la mitad iluminada y la mitad en sombra —mismo tono, luminancia muy distinta—, así que el
+crecimiento de región se paraba a medio camino. Por eso hay **ocho pasadas** y gana la primera que
+pasa los filtros: cuatro con `PESO_CROMA = 0.12` (la luminancia casi no cuenta) y tolerancias
+`40, 28, 20, 14`, y cuatro con `PESO_CLASICO = 0.5` y tolerancias `45, 32, 22, 15`, que recuperan
+las presas que en tono se confunden con la madera pero en brillo no. Medido sobre dos bloques reales
+del Spray Wall: **13 contornos buenos de 20 presas**, y con una sola pasada eran 4 de 10.
 
-- **La presa que falla no desaparece**: se dibuja con el claro redondo de siempre, pero sin aro.
-  Espéralo en las presas de madera y en las grises sobre panel gris.
-- **No se guarda nada.** Ni en `holds` ni en columnas nuevas: se calcula al abrir el bloque y se
-  cachea en memoria por `imagen` + presas. Recargar la página lo recalcula.
-- **La imagen se carga con `crossOrigin="anonymous"`.** Si el bucket no lo permitiera,
-  `getImageData` lanza `SecurityError`, y entonces *todas* las presas caen al claro redondo. No es
-  un fallo del algoritmo: es el canvas contaminado.
-- **`TOLERANCIA` (45) es el número que hay que calibrar** contra las fotos reales de la sala. Es el
-  único mando de verdad: subirlo se come el panel, bajarlo deja la silueta en un pegote.
+Además, antes de trazar: **cierre morfológico amplio** (dos dilataciones y una erosión) y
+**`rellenarAgujeros`**, que marca como interior todo lo no alcanzable desde el borde del cuadrado.
+Sin eso, el agujero del tornillo partía la región y el contorno acababa rodeando el hueco en vez de
+la presa.
+
+Los descartes, todos medidos y no inventados:
+
+- Geométricos, sobre la región: `RADIO_MAX = 0.055` del ancho (el cuadrado de búsqueda),
+  `MAX_BORDE = 0.35` del perímetro, `MIN_AREA` 0,15 % y `MAX_AREA` 15 % del cuadrado.
+- `MIN_HOMOGENEIDAD_CONTORNO = 0.68` y `MIN_HOMOGENEIDAD = 0.55` (elipse): fracción del interior que
+  sigue pareciéndose al color de referencia, **con el peso y la tolerancia de la pasada que ganó**;
+  compararlo con otros valores da resultados incoherentes. Es el filtro que de verdad discrimina: la
+  elipse que se comía tres presas vecinas daba 0,51 y la que rodeaba un agujero 0,38, contra 0,61 a
+  0,94 en todas las buenas.
+- **El punto que marcó el usuario tiene que caer dentro** de la forma, y para la elipse además
+  semieje mayor ≤ 46 px de los 900, menor ≥ 6 y relación entre ejes ≤ 4.
+
+Dos trampas del dibujo:
+
+- **En la `<mask>`, el negro ilumina y el blanco oscurece.** El `<rect>` de fondo es blanco y cada
+  claro se abre pintando negro (el `radialGradient` arranca en `#000`). Un polígono en blanco deja
+  la presa *tapada*, que es justo lo contrario, y pasó exactamente eso.
+- **Los dos semiejes se normalizan por el ANCHO** y los dos se multiplican por `caja.w`. Como la
+  caja tiene el aspecto de la foto, así la elipse no se deforma; normalizando `b` por el alto
+  saldrían achatadas. Los puntos del contorno, en cambio, van `x` por ancho e `y` por alto.
+
+Y dos cosas heredadas que siguen valiendo: **la imagen se carga con `crossOrigin="anonymous"`** (si
+el bucket no lo permitiera, `getImageData` lanza `SecurityError` y *todas* las presas caen al
+círculo —canvas contaminado, no fallo del algoritmo—), y el resultado se **cachea en memoria** por
+`imagen` + presas, así que recargar la página lo recalcula.
+
+Esto es visión artificial sobre fotos de sala: **el resultado depende de la foto**. Con luz uniforme
+y presas saturadas acierta casi siempre; contra madera clara, no. Que una presa concreta salga con
+aro en vez de contorno es el comportamiento previsto, no una regresión.
 
 **5. La barra de zoom aplica el zoom sin animación, a propósito.** `centerView(escala, 0)`. Con
 animación la librería escribe el `transform` en el DOM mientras el `onTransform` provoca un
