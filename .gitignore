@@ -1,0 +1,7 @@
+# Nada de esto es fuente del proyecto
+node_modules/
+Thumbs.db
+desktop.ini
+*.tmp
+__pycache__/
+*.pyc
