@@ -109,11 +109,23 @@ es marcar rápido, no que quede bonito.
 
 Cómo detecta: reescala la foto a 900 px de ancho en un canvas fuera de pantalla y hace crecimiento
 de región (BFS 4-conexo) desde el punto guardado, comparando color en YCbCr **con el croma pesando
-cuatro veces más que la luminancia** — si no, las sombras del panel se cuelan por el degradado. Tres
-límites duros evitan que la mancha se coma medio muro: no salir de un cuadrado de `RADIO_MAX = 0.055`
-del ancho, descartar si toca el borde de ese cuadrado en más del 35 % de su perímetro, y descartar
-si el área es menor que el 0,15 % del cuadrado. Luego cierre morfológico, seguimiento de borde de
-Moore y Douglas-Peucker hasta 56 puntos.
+cuatro veces más que la luminancia** — si no, las sombras del panel se cuelan por el degradado.
+Luego cierre morfológico, seguimiento de borde de Moore y Douglas-Peucker hasta 56 puntos.
+
+**Cinco descartes** evitan que la mancha se coma medio muro. Tres son geométricos: no salir de un
+cuadrado de `RADIO_MAX = 0.055` del ancho, descartar si toca el borde de ese cuadrado en más del
+35 % de su perímetro (`MAX_BORDE`), y descartar si el área es menor que el 0,15 % del cuadrado
+(`MIN_AREA`). Los otros dos se añadieron después de medir un bloque real, porque los geométricos
+dejaban pasar dos manchas de nueve:
+
+- `MAX_AREA = 0.15` del cuadrado. Medido sobre las 10 presas de un bloque del Spray Wall: las
+  siluetas correctas ocupaban entre 213 y 872 px del cuadrado de 10 201, y la desbordada 3138.
+- `MIN_HOMOGENEIDAD = 0.85`. Sobre el polígono **ya simplificado**, muestrea una rejilla de 20x20 y
+  mide qué fracción de su interior sigue pareciéndose al color de referencia. Es el filtro que de
+  verdad importa, porque mide el defecto en vez de deducirlo del tamaño: caza los desbordes que
+  entran por un istmo estrecho, y también los que provoca el propio Douglas-Peucker cuando sube el
+  epsilon para bajar de 56 puntos y el polígono se aleja del contorno real. La mancha que se colaba
+  daba 0,77.
 
 Cuatro cosas de las siluetas que conviene saber:
 
@@ -140,6 +152,7 @@ profiles  id · nombre · rol ('entrenador'|'alumno') · created_at
 walls     id · nombre · angulo · imagen · orden                    -- 4 filas
 boulders  id · wall_id · nombre · grado · creador_id · creador_nombre
           creador_rol · descripcion · holds jsonb · numerar bool · created_at
+          imagen · holds_previos jsonb · imagen_previa      -- las 3 anulables
 ascents   id · boulder_id · user_id · user_nombre · created_at · UNIQUE(boulder_id,user_id)
 ```
 
@@ -148,6 +161,12 @@ travesías circulares (la misma presa es inicio y top) y **cuenta como inicio y 
 los recuentos y validaciones. `numerar` (por defecto `false`) decide si el marcador muestra el orden
 o solo `I`/`T`/`IT`: los entrenadores no querían una secuencia impuesta, el orden lo decide quien
 escala.
+
+`boulders.imagen` **fija la foto de ese bloque**: si es `null` — el caso normal — se usa la del muro.
+Solo se rellena cuando un bloque se queda anclado a una foto anterior, y el helper `fotoDeBloque()`
+resuelve las dos situaciones; usarlo en cualquier sitio nuevo donde se pinte un bloque.
+`holds_previos` e `imagen_previa` guardan el estado anterior al último reajuste, y son lo que hace
+posible «Deshacer reajuste».
 
 `walls.imagen` admite un nombre de archivo (`spraywall.jpg` → `/walls/…`, las 4 fotos de `public/`)
 o una **URL absoluta** del bucket `walls` de Storage, que es lo que guarda el panel de entrenador.
@@ -177,15 +196,46 @@ cabecera de «Mi progreso» y uno pequeño junto a los pinceles del editor.
 El panel de entrenador sube la foto redimensionada en el navegador (2400 px, JPEG 0.82, respetando
 la orientación EXIF con `createImageBitmap(..., { imageOrientation: "from-image" })`, porque las
 fotos de la cámara vienen tumbadas 90º) al bucket público `walls`, con nombre único. **Solo si la
-subida va bien** actualiza `walls.imagen` y borra los bloques del muro; ese orden importa. La lógica
-está en `src/lib/muros.ts`.
+subida va bien** toca los bloques; ese orden importa. La lógica está en `src/lib/muros.ts`.
+
+### Añadir presas sin perder los bloques
+
+Al elegir la foto, el panel pregunta **qué ha cambiado en el muro**, y de ahí salen dos caminos:
+
+- **«He reequipado el muro»** → `cambiarFotoMuro`, el comportamiento de siempre: avisa del recuento
+  real, exige escribir `BORRAR` y borra los bloques y sus encadenes.
+- **«Solo he añadido presas»** → `anadirPresasAlMuro`, que **no borra nada**. Abre `AlinearFoto`,
+  donde la foto antigua se superpone a la nueva y se arrastra, escala y gira hasta que las presas
+  coinciden; de ese ajuste sale la transformación que se aplica a las presas de todos los bloques
+  del muro. Si el muro no tiene bloques se salta la alineación y sube directamente.
+
+`src/lib/alineacion.ts` es el núcleo, y su regla es lo único que hay que respetar aquí: el ajuste son
+**cuatro números en píxeles de la foto nueva** (`s`, `theta`, `tx`, `ty`), y de ellos salen tanto
+`transformarPunto` (los datos) como `estiloAntigua` (el dibujo en pantalla, multiplicado por el
+factor pantalla/foto). Calcular el render por otro camino es el fallo clásico: encaja en pantalla y
+no encaja en los datos, y no se nota hasta abrir un bloque. Verificado: la equivalencia entre las
+dos es exacta salvo coma flotante, y con el ajuste inicial y la misma proporción es la identidad.
+
+Un bloque al que el reajuste le saque **alguna presa fuera del encuadre** no se transforma: se le
+pone `imagen` = la foto antigua y se queda dibujado sobre ella. Nunca se pierde.
+
+La foto se redimensiona **una sola vez**, al elegirla, y ese mismo `Blob` es el que se previsualiza,
+el que se mide en la alineación y el que se sube. No es un detalle de rendimiento: si se midiera el
+archivo original y se subiera el redimensionado, bastaría una foto tumbada por EXIF —lo normal en la
+cámara de la sala— para que el ancho y el alto no correspondieran y **todas** las presas de **todos**
+los bloques se fueran a otro sitio.
 
 ## Trampas conocidas
 
 - **Cambiar la foto de un muro descoloca los bloques ya guardados**, porque sus coordenadas son
-  relativas al encuadre anterior. El panel de entrenador lo resuelve borrándolos, avisando con el
-  recuento real y exigiendo escribir `BORRAR`. Para conservar el histórico hay que crear a mano una
-  **fila nueva en `walls`** y dejar la antigua.
+  relativas al encuadre anterior. Hay dos salidas, según lo que haya cambiado: reequipar borra los
+  bloques (con `BORRAR`), y añadir presas los conserva reajustándolos con `AlinearFoto`. Lo que no
+  existe es dejar de borrar *sin* reajustar: conservar las coordenadas viejas sobre un encuadre
+  nuevo es peor que perderlas, porque el bloque señala presas equivocadas y nadie lo sabe.
+- **«Deshacer reajuste» no toca `walls.imagen`.** La foto nueva se queda y los bloques vuelven a la
+  antigua, que sigue en Storage porque los nombres son únicos. Por eso `imagen_previa` guarda
+  `b.imagen ?? imagenAntigua` y no `b.imagen ?? null`: con `null` el bloque volvería a la foto del
+  muro, que ya es la nueva, y deshacer descolocaría justo lo que venía a salvar.
 - **Al cambiar los iconos hay que subir la versión de la caché** en `public/sw.js`
   (va por `spraywall-v3`). Si no, quien tenga la PWA instalada seguirá viendo los iconos
   viejos: el service worker los tiene precacheados. El `sw.js` hace cache-first también con

@@ -137,6 +137,23 @@ En `/entrenador`, accesible desde «Mi progreso» y **solo con rol de entrenador
 con su foto, su ángulo y cuántos bloques y encadenes tiene cada uno, y permite **cambiar la foto de
 fondo** de un muro cuando cambia el equipamiento de la sala.
 
+Al elegir la foto, la app pregunta **qué ha cambiado en el muro**, porque la respuesta decide qué
+pasa con los bloques que ya existen:
+
+- **«Solo he añadido presas»** — el muro es el mismo, solo hay presas nuevas. **No se borra nada.**
+  Se abre una pantalla donde la foto antigua queda superpuesta a la nueva y se arrastra, escala y
+  gira con los dedos hasta que las presas coinciden; con ese encaje la app mueve las presas de todos
+  los bloques del muro a su sitio en la foto nueva. Hay un deslizador de transparencia, flechas de
+  ajuste fino de un píxel y un **modo diferencia**: cuando las dos fotos encajan la imagen se vuelve
+  casi negra, que es la forma más rápida de acertar. Si el muro todavía no tiene bloques, la foto se
+  sube directamente sin pasar por el ajuste.
+- **«He reequipado el muro»** — las presas son otras. Se borran los bloques de ese muro y sus
+  encadenes, avisando del recuento real y exigiendo escribir `BORRAR`.
+
+Un bloque al que el reajuste le saque alguna presa fuera del encuadre **no se toca**: se queda
+dibujado sobre la foto anterior, que sigue guardada. Y mientras haya algún reajuste reciente, cada
+muro ofrece **«Deshacer reajuste»**, que devuelve las presas a donde estaban.
+
 La foto se redimensiona **en el navegador** antes de subirla (lado mayor 2400 px, JPEG 0.82, los
 mismos valores que `scripts/preparar-imagenes.ps1`) con `createImageBitmap(file, { imageOrientation:
 "from-image" })`, porque las fotos de la cámara vienen tumbadas 90º y sin eso el muro sale girado.
@@ -194,6 +211,7 @@ walls     id uuid pk · nombre text · angulo int · imagen text · orden int
 boulders  id uuid pk · wall_id fk · nombre text · grado text · creador_id fk
           creador_nombre text · creador_rol text · descripcion text null
           holds jsonb · numerar bool (default false) · created_at
+          imagen text null · holds_previos jsonb null · imagen_previa text null
 ascents   id uuid pk · boulder_id fk · user_id fk · user_nombre text · created_at
           UNIQUE (boulder_id, user_id)
 ```
@@ -214,9 +232,12 @@ que son independientes de la resolución, del zoom y del tamaño de pantalla:
 a `/walls/…`, para las 4 fotos que viven en `public/`) o una **URL absoluta** del bucket de Storage,
 que es lo que guarda el panel de entrenador al subir una foto nueva.
 
-Si se cambian las presas del muro, hay dos caminos: sustituir la foto desde el panel de entrenador
-(borra los bloques de ese muro, que quedarían descolocados) o crear una **fila nueva en `walls`** y
-conservar la antigua como histórico. Lo segundo no está en la interfaz; hay que hacerlo a mano.
+`boulders.imagen` hace lo mismo para un bloque concreto: si está vacía —lo normal— el bloque se
+dibuja sobre la foto de su muro, y si tiene valor, sobre esa foto en particular. Es lo que permite
+que un bloque sobreviva a un cambio de foto sin descolocarse.
+
+Si se reequipa el muro de arriba abajo y aun así se quiere conservar el histórico, sigue habiendo un
+camino manual: crear una **fila nueva en `walls`** y dejar la antigua. Eso no está en la interfaz.
 
 ---
 
@@ -334,11 +355,12 @@ entrenador tiene el icono de papelera arriba a la derecha.
 - **Vídeos de beta** en los encadenes.
 - **Detección automática de presas** por visión artificial: hoy las presas se marcan a mano
   sobre la foto. Es la mejora con más recorrido del sector.
-- **Versionado de muro en la interfaz**: el panel de entrenador sustituye la foto y borra los
-  bloques de ese muro. Conservar el histórico exige crear a mano una fila nueva en `walls`.
+- **Versionado de muro en la interfaz**: añadir presas ya conserva los bloques, pero reequipar de
+  cero sigue borrándolos, y conservar ese histórico exige crear a mano una fila nueva en `walls`.
 - **Editar el nombre y el ángulo de un muro** desde el panel de entrenador; hoy solo la foto.
 
-Ya hechos, a partir del feedback de los entrenadores: numeración opcional de presas, presa de
+Ya hechos, a partir del feedback de los entrenadores: añadir presas al muro sin perder los bloques,
+numeración opcional de presas, presa de
 inicio y top a la vez, marcador que no tapa la presa, secuencia iluminada sobre el muro oscurecido
 y barra de zoom progresiva.
 

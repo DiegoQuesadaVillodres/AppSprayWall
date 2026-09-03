@@ -114,14 +114,27 @@ encadenes.
 En **Mi progreso → Entrenador** hay un botón **«Cambiar foto»** en cada muro. Sirve para cuando se
 reequipa un panel y la foto ya no corresponde con las presas que hay.
 
-> ### Ojo: al cambiar la foto se borran todos los bloques de ese muro
+Al elegir la foto, la app te pregunta **qué ha cambiado en el muro**, y de tu respuesta depende qué
+pasa con los bloques que ya hay.
+
+**«Solo he añadido presas»: no se borra nada.** Es el caso de meter presas nuevas sin desmontar el
+panel. Después de elegir la foto verás la **antigua superpuesta a la nueva**: muévela, agrándala o
+gírala con los dedos hasta que sus presas caigan encima de las presas de la foto nueva, y pulsa
+Confirmar. La app mueve entonces las presas de todos los bloques a su sitio en la foto nueva.
+
+Tres ayudas en esa pantalla: el deslizador de **transparencia**, las **flechas** de ajuste fino, y el
+botón **Diferencia**, que es el truco bueno — con él, cuanto mejor encajen las dos fotos más negra se
+vuelve la imagen, así que solo tienes que mover hasta que se oscurezca todo lo posible.
+
+Si algún bloque no cuadra (le sale una presa fuera de la foto), ese bloque se queda dibujado sobre la
+foto de antes en lugar de moverse. No se pierde. Y si el encaje no te ha quedado bien, cada muro
+tiene un botón **«Deshacer reajuste»** que devuelve las presas a donde estaban.
+
+> ### Ojo: si has reequipado el muro, sí se borran los bloques
 >
-> Las presas de cada bloque están guardadas como puntos **relativos a la foto**. Si la foto cambia,
-> esos puntos ya no caen sobre las presas correctas, así que los bloques de ese muro se borran, junto
-> con sus encadenes. **No se puede deshacer.**
->
-> Por eso la app te enseña cuántos bloques y encadenes vas a perder y te obliga a escribir la palabra
-> `BORRAR` para confirmar.
+> Cuando las presas son otras, los puntos guardados ya no significan nada: los bloques de ese muro se
+> borran junto con sus encadenes, y **eso no se puede deshacer**. Por eso la app te enseña cuántos
+> bloques y encadenes vas a perder y te obliga a escribir la palabra `BORRAR` para confirmar.
 
 Consejos para que la foto quede bien:
 
@@ -130,8 +143,8 @@ Consejos para que la foto quede bien:
 - Puedes hacerla con el móvil en ese momento: la app la reduce y la coloca sola, y respeta la
   orientación (no sale tumbada).
 
-Si un muro tiene bloques que merece la pena conservar, **avisad antes de cambiarle la foto**: se
-puede crear el muro nuevo aparte y dejar el viejo como histórico.
+Si vas a reequipar un muro con bloques que merece la pena conservar, **avisad antes de cambiarle la
+foto**: se puede crear el muro nuevo aparte y dejar el viejo como histórico.
 
 ### Incidencia del 12 de agosto
 
