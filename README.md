@@ -86,7 +86,7 @@ Se toca sobre cada presa para marcarla:
 | 🔴 Rojo | `top` | Presa de top |
 | 🟡 Ámbar | `inicio-top` | La misma presa es inicio **y** top (travesías circulares) |
 
-Las presas del bloque **se iluminan y el resto del muro se apaga**: una capa negra al 70 % cubre la
+Las presas del bloque **se iluminan y el resto del muro se apaga**: una capa negra al 56 % cubre la
 foto, con un claro de bordes difuminados sobre cada presa (radio: 3 % del ancho de la imagen) y un
 aro de su color, con resplandor, en el borde del claro. La presa queda entera a la vista, sin nada
 encima, y la secuencia del bloque se lee de un golpe. El aro de `inicio-top` es bicolor, mitad
@@ -96,10 +96,16 @@ Antes fue un pin con forma de gota, y antes un círculo centrado sobre la presa 
 zona sensible al toque no ha cambiado en ninguno de los dos cambios: sigue siendo el doble del radio
 original, para poder corregir con el dedo. Si no hay ninguna presa marcada, la foto se ve limpia.
 
-> El claro es un círculo de radio fijo, porque de cada presa solo se guarda un punto: la app no
-> conoce su silueta. En las presas más grandes el aro no las abarca enteras. Contornear de verdad
-> exigiría un polígono por presa (lo que Retro Flash cobra a 80-99 € por muro) o segmentación
-> automática.
+Al abrir un bloque, la app **detecta la silueta de cada presa** sobre la foto y la luz sigue su
+contorno en vez de ser un círculo: reescala la imagen en el navegador y va extendiendo una mancha
+desde el punto guardado mientras el color se parezca, comparando más el tono que el brillo para que
+las sombras del panel no se cuelen. No se guarda nada en la base de datos y no hay que marcar
+ningún contorno a mano.
+
+> Cuando una presa no se puede distinguir del panel —madera sobre madera, gris sobre gris, una
+> sombra fuerte— se dibuja el claro redondo de siempre, sin aro. La presa nunca desaparece del
+> bloque. En el **editor** el claro es siempre redondo, a propósito: ahí lo que importa es marcar
+> rápido.
 
 La **numeración es opcional** y viene desactivada: el orden de las presas lo decide quien escala.
 Hay un checkbox «Numerar las presas en orden» en la ficha del bloque (columna `boulders.numerar`).

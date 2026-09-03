@@ -80,7 +80,7 @@ Además: **la zona sensible al toque no depende del tamaño del marcador**. Es u
 la coordenada de la presa, y se mantiene aunque el dibujo encoja, para poder corregir con el dedo.
 
 **4. Las presas se iluminan; el resto del muro se apaga.** No hay marcador *encima* de la presa:
-un `<svg>` superpuesto pinta un rectángulo negro al `OSCURIDAD = 0.7` recortado por una `<mask>` con
+un `<svg>` superpuesto pinta un rectángulo negro al `OSCURIDAD = 0.56` recortado por una `<mask>` con
 un claro difuminado por presa (`RADIO_FOCO = 0.030` del ancho, `DIFUMINADO = 0.35` del radio), y en
 el borde de cada claro un aro del color del tipo con resplandor. La presa queda entera a la vista.
 Antes era un pin de gota con bulbo, y antes de eso un círculo centrado sobre la presa que la tapaba.
@@ -97,7 +97,35 @@ Tres cosas que no se ven a primera vista:
 
 La etiqueta (`I`/`T`/`IT` o el número de orden) va en un **disco pegado al aro a 45º**, fuera del
 claro, con el texto como `<text>` del SVG; su tope es el 60 % del diámetro del disco para que no
-desborde. Las presas de mano/pie no llevan disco.
+desborde. Las presas de mano/pie no llevan disco. Cuando hay silueta el disco se pega a la esquina
+superior derecha de su rectángulo envolvente, no a los 45º del punto.
+
+**El claro es redondo en el editor y sigue la silueta en el visor.** Lo decide la prop `siluetas`
+de `WallCanvas`, `false` por defecto: solo la pasa `/bloque/$boulderId`. Con ella,
+`src/lib/siluetas.ts` calcula el contorno de cada presa **en el navegador** y devuelve un polígono
+en coordenadas 0..1, que abre el claro en la `<mask>` (relleno, engrosado y desenfocado) y lleva
+encima el resplandor del color. El editor se queda con el círculo a propósito: ahí lo que importa
+es marcar rápido, no que quede bonito.
+
+Cómo detecta: reescala la foto a 900 px de ancho en un canvas fuera de pantalla y hace crecimiento
+de región (BFS 4-conexo) desde el punto guardado, comparando color en YCbCr **con el croma pesando
+cuatro veces más que la luminancia** — si no, las sombras del panel se cuelan por el degradado. Tres
+límites duros evitan que la mancha se coma medio muro: no salir de un cuadrado de `RADIO_MAX = 0.055`
+del ancho, descartar si toca el borde de ese cuadrado en más del 35 % de su perímetro, y descartar
+si el área es menor que el 0,15 % del cuadrado. Luego cierre morfológico, seguimiento de borde de
+Moore y Douglas-Peucker hasta 56 puntos.
+
+Cuatro cosas de las siluetas que conviene saber:
+
+- **La presa que falla no desaparece**: se dibuja con el claro redondo de siempre, pero sin aro.
+  Espéralo en las presas de madera y en las grises sobre panel gris.
+- **No se guarda nada.** Ni en `holds` ni en columnas nuevas: se calcula al abrir el bloque y se
+  cachea en memoria por `imagen` + presas. Recargar la página lo recalcula.
+- **La imagen se carga con `crossOrigin="anonymous"`.** Si el bucket no lo permitiera,
+  `getImageData` lanza `SecurityError`, y entonces *todas* las presas caen al claro redondo. No es
+  un fallo del algoritmo: es el canvas contaminado.
+- **`TOLERANCIA` (45) es el número que hay que calibrar** contra las fotos reales de la sala. Es el
+  único mando de verdad: subirlo se come el panel, bajarlo deja la silueta en un pegote.
 
 **5. La barra de zoom aplica el zoom sin animación, a propósito.** `centerView(escala, 0)`. Con
 animación la librería escribe el `transform` en el DOM mientras el `onTransform` provoca un
