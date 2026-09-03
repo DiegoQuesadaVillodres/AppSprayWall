@@ -63,8 +63,8 @@ pwsh -File scripts/preparar-imagenes.ps1
 
 ### 1. Visor interactivo del muro
 Foto fija de alta resolución con **zoom y desplazamiento**, y marcadores sobre las presas del
-bloque. Los marcadores se posicionan en porcentaje sobre la imagen, así que quedan anclados a su
-presa y escalan con el zoom.
+bloque. Las coordenadas normalizadas se convierten a píxeles de la caja del lienzo, así que los
+marcadores quedan anclados a su presa y escalan con el zoom.
 
 El zoom (1x a 8x) se maneja de tres formas: pinza, doble toque y una **barra de zoom vertical** en
 el lado derecho del lienzo, con botones + y −. El recorrido de la barra es **geométrico**
@@ -86,16 +86,25 @@ Se toca sobre cada presa para marcarla:
 | 🔴 Rojo | `top` | Presa de top |
 | 🟡 Ámbar | `inicio-top` | La misma presa es inicio **y** top (travesías circulares) |
 
-El marcador es un **pin con forma de gota**: la punta se clava en la coordenada exacta de la presa
-y el bulbo queda encima, así que la presa se ve. El bulbo mide el 2.4 % del ancho de la imagen
-(antes era un círculo del 3.5 % centrado *sobre* la presa, y con presas juntas no se distinguía
-cuál estaba marcada). La zona sensible al toque **no** encogió con él: sigue siendo el doble del
-radio original, para poder corregir con el dedo. El pin de `inicio-top` lleva el borde bicolor,
-mitad verde mitad rojo.
+Las presas del bloque **se iluminan y el resto del muro se apaga**: una capa negra al 70 % cubre la
+foto, con un claro de bordes difuminados sobre cada presa (radio: 3 % del ancho de la imagen) y un
+aro de su color, con resplandor, en el borde del claro. La presa queda entera a la vista, sin nada
+encima, y la secuencia del bloque se lee de un golpe. El aro de `inicio-top` es bicolor, mitad
+verde mitad rojo.
+
+Antes fue un pin con forma de gota, y antes un círculo centrado sobre la presa que la tapaba. La
+zona sensible al toque no ha cambiado en ninguno de los dos cambios: sigue siendo el doble del radio
+original, para poder corregir con el dedo. Si no hay ninguna presa marcada, la foto se ve limpia.
+
+> El claro es un círculo de radio fijo, porque de cada presa solo se guarda un punto: la app no
+> conoce su silueta. En las presas más grandes el aro no las abarca enteras. Contornear de verdad
+> exigiría un polígono por presa (lo que Retro Flash cobra a 80-99 € por muro) o segmentación
+> automática.
 
 La **numeración es opcional** y viene desactivada: el orden de las presas lo decide quien escala.
 Hay un checkbox «Numerar las presas en orden» en la ficha del bloque (columna `boulders.numerar`).
-Sin numerar, el bulbo muestra `I` en las de inicio, `T` en las de top, `IT` en las de inicio y top,
+Sin numerar, el disco pegado al aro muestra `I` en las de inicio, `T` en las de top, `IT` en las
+de inicio y top,
 y nada en manos/pies. Numerado, muestra el orden, que se recalcula al borrar una presa intermedia.
 
 Tocar una presa con un pincel distinto la convierte a ese tipo; tocarla con su mismo pincel la
@@ -139,15 +148,16 @@ Es una barrera de conveniencia, no de seguridad: el rol es autodeclarado con el 
 `/ayuda`: nueve secciones plegables que explican qué es el tablón, cómo buscar y filtrar, qué
 significa cada color de presa, cómo montar un bloque, el progreso, la instalación en el móvil, cómo
 funcionan el nombre y el historial, y una lista de dudas frecuentes (el QR que no se puede escanear
-con el propio móvil, las chinchetas descolocadas al cambiar la foto, los encadenes «perdidos»).
+con el propio móvil, los aros descolocados al cambiar la foto, los encadenes «perdidos»).
 
 La sección **«Soy entrenador»** solo aparece con rol de entrenador, con el aviso de que cambiar la
 foto borra los bloques. **El código de sala no se menciona**: la pantalla la ve cualquiera, así que
 remite a recepción.
 
-La leyenda de colores no dibuja bolitas de muestra: reusa el **mismo `path` SVG y los mismos
-`HOLD_COLORS`** que `WallCanvas`, incluido el pin bicolor de inicio+top, para que lo que se ve en la
-ayuda sea idéntico a lo que luego se ve en el muro. Si cambia el marcador, hay que cambiar los dos.
+La leyenda de colores no dibuja bolitas de muestra: reproduce el **mismo foco** que `WallCanvas`
+—muro oscurecido, claro, aro y disco de etiqueta— con los mismos `HOLD_COLORS`, incluido el aro
+bicolor de inicio+top, para que lo que se ve en la ayuda sea idéntico a lo que luego se ve en el
+muro. Si cambia el dibujo de la presa, hay que cambiar los dos.
 
 Se llega desde tres sitios: el icono `?` de la cabecera de Muros, otro en la cabecera de Mi
 progreso, y uno pequeño junto a los pinceles del editor, que es donde más dudas surgen.
@@ -323,7 +333,8 @@ entrenador tiene el icono de papelera arriba a la derecha.
 - **Editar el nombre y el ángulo de un muro** desde el panel de entrenador; hoy solo la foto.
 
 Ya hechos, a partir del feedback de los entrenadores: numeración opcional de presas, presa de
-inicio y top a la vez, marcador que no tapa la presa y barra de zoom progresiva.
+inicio y top a la vez, marcador que no tapa la presa, secuencia iluminada sobre el muro oscurecido
+y barra de zoom progresiva.
 
 ---
 

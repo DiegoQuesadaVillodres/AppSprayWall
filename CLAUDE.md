@@ -63,7 +63,8 @@ viven las tres decisiones que sostienen todo lo demás.
 
 **1. Coordenadas normalizadas 0..1.** Las presas se guardan en `boulders.holds` (JSONB) como
 `{x, y, tipo}` con `x`/`y` relativos a la imagen. Son independientes de resolución, zoom y tamaño
-de pantalla, y los marcadores se posicionan en `%` para quedar anclados a su presa.
+de pantalla. La capa de dibujo las convierte a **píxeles de la caja** (`h.x * caja.w`,
+`h.y * caja.h`) para quedar ancladas a su presa.
 
 **2. Aspecto dinámico.** Las 4 fotos tienen proporciones distintas (2400x2295, 2400x2263,
 1769x2400, 2165x2400). El lienzo lee `naturalWidth/naturalHeight` en el `onLoad` y aplica ese
@@ -78,11 +79,25 @@ Además: **la zona sensible al toque no depende del tamaño del marcador**. Es u
 `RADIO_TOQUE = RADIO * 2` (`RADIO = 0.0175` del ancho, el radio del círculo *original*) centrado en
 la coordenada de la presa, y se mantiene aunque el dibujo encoja, para poder corregir con el dedo.
 
-**4. El marcador es un pin de gota, no un círculo.** La punta se clava en la coordenada exacta y el
-bulbo (`BULBO = 0.024` del ancho, `ALTO_PIN = 1.9` veces ese diámetro) queda **encima**, dejando la
-presa a la vista; con círculos centrados sobre la presa no se distinguía cuál estaba marcada cuando
-había dos juntas. El texto del bulbo va en un `span` HTML aparte, no dentro del SVG, para poder
-compensar su tamaño con el zoom; su límite es el 60 % del diámetro del bulbo para que no desborde.
+**4. Las presas se iluminan; el resto del muro se apaga.** No hay marcador *encima* de la presa:
+un `<svg>` superpuesto pinta un rectángulo negro al `OSCURIDAD = 0.7` recortado por una `<mask>` con
+un claro difuminado por presa (`RADIO_FOCO = 0.030` del ancho, `DIFUMINADO = 0.35` del radio), y en
+el borde de cada claro un aro del color del tipo con resplandor. La presa queda entera a la vista.
+Antes era un pin de gota con bulbo, y antes de eso un círculo centrado sobre la presa que la tapaba.
+
+Tres cosas que no se ven a primera vista:
+
+- **El `viewBox` va en píxeles de la caja** (`0 0 caja.w caja.h`), no en porcentajes. Es lo único
+  que hace que los claros salgan **redondos**: `x` es fracción del ancho e `y` del alto, y las 4
+  fotos tienen proporciones distintas. En porcentajes saldrían ovalados.
+- **Sin presas marcadas no se dibuja la capa.** Si no, el editor arrancaría con la foto a oscuras
+  y sería imposible buscar la primera presa.
+- Los ids de la `mask` y del `radialGradient` salen de `useId()`, para que dos lienzos en la misma
+  página no se pisen.
+
+La etiqueta (`I`/`T`/`IT` o el número de orden) va en un **disco pegado al aro a 45º**, fuera del
+claro, con el texto como `<text>` del SVG; su tope es el 60 % del diámetro del disco para que no
+desborde. Las presas de mano/pie no llevan disco.
 
 **5. La barra de zoom aplica el zoom sin animación, a propósito.** `centerView(escala, 0)`. Con
 animación la librería escribe el `transform` en el DOM mientras el `onTransform` provoca un
@@ -123,11 +138,12 @@ propósito: es un tablón interno, no un sistema con datos sensibles. El punto d
 `/entrenador` panel de entrenador (cambiar la foto de un muro) ·
 `/ayuda` guía de uso dentro de la app.
 
-`/ayuda` es un acordeón de nueve secciones. Dos cosas que no se ven en el código a primera vista:
+`/ayuda` es un acordeón de diez secciones, la primera «SprayWall está en beta» y abierta por
+defecto (`defaultValue="beta"`). Dos cosas que no se ven en el código a primera vista:
 la sección «Soy entrenador» solo se monta si `user.rol === "entrenador"`, y **el código de sala no
 aparece ahí a propósito** (la pantalla la ve cualquiera; dice que lo dan en recepción). Su leyenda
-de presas reusa el mismo `path` SVG y los mismos `HOLD_COLORS` que `WallCanvas`, así que un cambio
-en el marcador obliga a tocar los dos sitios. Se llega desde el icono `?` de Muros, otro en la
+de presas reproduce el foco de `WallCanvas` (máscara, aro y disco) con los mismos `HOLD_COLORS`,
+así que un cambio en el dibujo de la presa obliga a tocar los dos sitios. Se llega desde el icono `?` de Muros, otro en la
 cabecera de «Mi progreso» y uno pequeño junto a los pinceles del editor.
 
 El panel de entrenador sube la foto redimensionada en el navegador (2400 px, JPEG 0.82, respetando
