@@ -4,7 +4,7 @@
 # Salida:   Imagenes/web/*.jpg         (lado mayor 2400 px, JPEG q82)
 #
 # Los originales de cámara están en Imagenes/*.JPG y venían tumbados 90º; las recortadas
-# ya salen derechas, así que aquí solo se reescala y se comprime. Las 4 fotos tienen
+# ya salen derechas, así que aquí solo se reescala y se comprime. Las fotos tienen
 # proporciones distintas y se conservan tal cual: la app lee el aspecto real de cada
 # imagen, no asume ninguno.
 #
@@ -24,6 +24,7 @@ $mapa = [ordered]@{
     "Muro0º_p.JPG"    = "muro-0.jpg"
     "Muro5º_p.JPG"     = "muro-5.jpg"
     "Muro15º_p.JPG"    = "muro-15.jpg"
+    "TotalSprayWall_p.jpg" = "panoramica.jpg"
 }
 
 $maxLado = 2400

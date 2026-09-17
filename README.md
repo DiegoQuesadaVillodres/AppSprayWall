@@ -27,7 +27,7 @@ y los paneles de la sala. Inspirada en Retro Flash, pero reducida a lo esencial 
 
 ---
 
-## Los 4 muros
+## Los 5 muros
 
 Las fotos en uso salen de `Imagenes/Recortadas/` (encuadradas a mano para que el muro llene el
 cuadro, sin techo ni suelo sobrando). `Imagenes/web/` guarda las versiones optimizadas que se
@@ -41,10 +41,18 @@ suben a la app: lado mayor 2400 px, JPEG calidad 82.
 | `muro-0.jpg` | Panel 0º | 0º | 2400x2263 |
 | `muro-5.jpg` | Panel 5º | 5º | 1769x2400 |
 | `muro-15.jpg` | Panel 15º | 15º | 2165x2400 |
+| `panoramica.jpg` | Panorámica de toda la sala | — | 2142x978 |
 
 Cada foto tiene una proporción distinta, así que el lienzo **no** asume ninguna: lee
 `naturalWidth/naturalHeight` al cargar la imagen y aplica ese aspecto. Se puede sustituir
 cualquier foto por otra de proporción diferente sin tocar código.
+
+La **panorámica** es la excepción con la que se probó eso de verdad: es apaisada (relación 2,19)
+mientras que las otras cuatro son verticales. Su tarjeta ocupa el ancho completo en la pantalla de
+Muros y no muestra ángulo, y al abrirla la foto arranca con el zoom puesto para que llene la altura
+del móvil y la sala se recorra a lo ancho; alejando se ve entera. Eso lo decide la columna
+`walls.panoramico`, no el aspecto de la imagen: el aspecto no se conoce hasta que la foto ha
+cargado, y la maquetación de la tarjeta se decide antes. La foto de ahora es provisional.
 
 Para regenerar las imágenes optimizadas desde las recortadas:
 
@@ -53,9 +61,9 @@ pwsh -File scripts/preparar-imagenes.ps1
 ```
 
 > **Al cambiar la foto de un muro, los bloques existentes quedan descolocados**: sus presas están
-> guardadas en coordenadas relativas al encuadre anterior. Si es un reencuadre, hay que borrar los
-> bloques de ese muro. Si es un cambio de presas, lo limpio es crear una fila nueva en `walls` y
-> conservar la antigua como histórico.
+> guardadas en coordenadas relativas al encuadre anterior. Por eso el panel de entrenador pregunta
+> qué ha cambiado y ofrece dos caminos —reajustar los bloques sobre la foto nueva, o borrarlos—,
+> explicados más abajo. Lo que no existe es dejarlos como estaban sobre un encuadre distinto.
 
 ---
 
@@ -76,6 +84,10 @@ lejos a demasiado cerca sin nada en medio.
 > animación la librería escribe el `transform` directamente en el DOM mientras el `onTransform`
 > provoca un re-render de React que lo sobrescribe: el indicador subía y la foto no se movía.
 
+La foto se abre también **a pantalla completa**, con el nombre del bloque, su grado y la leyenda de
+colores flotando encima. El botón «atrás» del móvil la cierra y vuelve al bloque, en vez de sacarte
+de él.
+
 ### 2. Creador de bloques
 Se toca sobre cada presa para marcarla:
 
@@ -86,33 +98,45 @@ Se toca sobre cada presa para marcarla:
 | 🔴 Rojo | `top` | Presa de top |
 | 🟡 Ámbar | `inicio-top` | La misma presa es inicio **y** top (travesías circulares) |
 
-Las presas del bloque **se iluminan y el resto del muro se apaga**: una capa negra al 56 % cubre la
-foto, con un claro de bordes difuminados sobre cada presa (radio: 3 % del ancho de la imagen) y un
-aro de su color, con resplandor, en el borde del claro. La presa queda entera a la vista, sin nada
-encima, y la secuencia del bloque se lee de un golpe. El aro de `inicio-top` es bicolor, mitad
-verde mitad rojo.
+Las presas del bloque **se iluminan y el resto del muro se apaga**: una capa negra al 72 % cubre la
+foto y se abre un claro sobre cada presa. Ahí la presa no solo se libra de la sombra, sino que se ve
+**más clara que en la foto original**, y lleva alrededor la silueta de su propia forma, con un aro
+de su color y resplandor. La presa queda entera a la vista, sin nada encima, y la secuencia del
+bloque se lee de un golpe. El aro de `inicio-top` es bicolor, mitad verde mitad rojo. La idea está
+tomada de la app [Crux](https://www.cruxapp.ca/).
 
 Antes fue un pin con forma de gota, y antes un círculo centrado sobre la presa que la tapaba. La
 zona sensible al toque no ha cambiado en ninguno de los dos cambios: sigue siendo el doble del radio
 original, para poder corregir con el dedo. Si no hay ninguna presa marcada, la foto se ve limpia.
 
-Al abrir un bloque, la app **reconoce cada presa** sobre la foto y ajusta la marca a su forma, sin
-que nadie tenga que dibujar contornos a mano. Va extendiendo una mancha desde el punto guardado
-mientras el color se parezca, y compara **el color casi sin mirar el brillo**: si mirara el brillo
-se pararía en la sombra de la propia presa y marcaría solo la mitad iluminada. Prueba hasta ocho
-combinaciones por presa y se queda con la primera limpia. No se guarda nada en la base de datos.
+Tanto al abrir un bloque como al montarlo, la app **reconoce cada presa** sobre la foto y ajusta la
+marca a su forma, sin que nadie tenga que dibujar contornos a mano. Va extendiendo una mancha desde
+el punto guardado mientras el color se parezca, y compara **el color casi sin mirar el brillo**: si
+mirara el brillo se pararía en la sombra de la propia presa y marcaría solo la mitad iluminada.
+Prueba hasta ocho combinaciones por presa y, entre todas las que salen limpias, **se queda con la
+más estable**: ordenadas de menor a mayor, va aceptando mientras la mancha crezca poco a poco y se
+planta en el primer salto brusco, que es la mancha escapándose a la presa de al lado. Con la regla
+anterior —la primera que pasara— media presa iluminada le ganaba a la presa entera. No se guarda
+nada en la base de datos.
 
-Según lo que consigue reconocer, la marca es una de tres, siempre del color del tipo de presa:
+Según lo que consigue reconocer, la marca es una de estas, siempre del color del tipo de presa:
 
 1. **La línea del contorno**, siguiendo la forma de la presa. Es el caso bueno: unas dos de cada
    tres.
 2. **Un aro ovalado** del tamaño y la inclinación de la presa, cuando el contorno no sale limpio.
-3. **El aro redondo** de siempre, cuando la foto no da para más.
+3. **Un aro redondo del tamaño que sí ha podido medir**, cuando la forma no sale pero el tamaño sí.
+4. **Un aro redondo con el tamaño típico de las presas de ese bloque**, para las que no se dejan
+   medir. Es mejor estimación que una medida fija, sobre todo en un bloque de presas grandes.
 
 > **Ninguna presa se queda nunca sin su aro de color.** Es la regla que manda sobre todo lo demás:
 > es preferible un círculo honesto a una línea que marque el sitio equivocado. Las que más se
-> resisten son las presas de madera, las beige pegadas al panel y los volúmenes muy grandes. En el
-> **editor** la marca es siempre redonda, a propósito: ahí lo que importa es marcar rápido.
+> resisten son las presas de madera, las beige pegadas al panel y los volúmenes muy grandes.
+
+Y cuando la detección no acierta, **se corrige a mano**. El editor tiene un modo **«Ajustar foco»**:
+se toca la presa y se agranda o encoge su luz con − y + (de ×0,5 a ×2,5). En ese modo tocar una
+presa no la borra ni le cambia el tipo, solo la selecciona, y la seleccionada se marca con un aro
+blanco discontinuo por fuera. El ajuste se guarda con el bloque, y solo en las presas que se hayan
+tocado.
 
 La **numeración es opcional** y viene desactivada: el orden de las presas lo decide quien escala.
 Hay un checkbox «Numerar las presas en orden» en la ficha del bloque (columna `boulders.numerar`).
@@ -140,7 +164,7 @@ encadenes totales, bloques creados, grado máximo, una **pirámide de grados** e
 historial cronológico.
 
 ### 5. Panel de entrenador
-En `/entrenador`, accesible desde «Mi progreso» y **solo con rol de entrenador**. Lista los 4 muros
+En `/entrenador`, accesible desde «Mi progreso» y **solo con rol de entrenador**. Lista los muros
 con su foto, su ángulo y cuántos bloques y encadenes tiene cada uno, y permite **cambiar la foto de
 fondo** de un muro cuando cambia el equipamiento de la sala.
 
@@ -172,17 +196,18 @@ solo **si la subida ha ido bien** se actualiza `walls.imagen` y se borran los bl
 > recuento real («este muro tiene 3 bloques con 7 encadenes») y exige **escribir `BORRAR`** para
 > habilitar el botón. Si el muro no tiene bloques, basta con confirmar.
 
-Es una barrera de conveniencia, no de seguridad: el rol es autodeclarado con el código de sala.
+Quién puede entrar aquí ya no es cosa de la interfaz: `/entrenador` se protege con el rol real de
+`user_roles`, y las políticas RLS de `walls` y del bucket `walls` de Storage solo dejan escribir a
+entrenadores y administradores.
 
 ### 6. Ayuda dentro de la app
-`/ayuda`: nueve secciones plegables que explican qué es el tablón, cómo buscar y filtrar, qué
+`/ayuda`: diez secciones plegables que explican qué es el tablón, cómo buscar y filtrar, qué
 significa cada color de presa, cómo montar un bloque, el progreso, la instalación en el móvil, cómo
-funcionan el nombre y el historial, y una lista de dudas frecuentes (el QR que no se puede escanear
+funcionan la cuenta y el historial, cómo se vota el grado, y una lista de dudas frecuentes (el QR que no se puede escanear
 con el propio móvil, los aros descolocados al cambiar la foto, los encadenes «perdidos»).
 
 La sección **«Soy entrenador»** solo aparece con rol de entrenador, con el aviso de que cambiar la
-foto borra los bloques. **El código de sala no se menciona**: la pantalla la ve cualquiera, así que
-remite a recepción.
+foto borra los bloques. Se monta con `esEntrenador`, el rol real, no con el campo del perfil.
 
 La leyenda de colores no dibuja bolitas de muestra: reproduce el **mismo foco** que `WallCanvas`
 —muro oscurecido, claro, aro y disco de etiqueta— con los mismos `HOLD_COLORS`, incluido el aro
@@ -196,32 +221,93 @@ progreso, y uno pequeño junto a los pinceles del editor, que es donde más duda
 
 ## Identificación
 
-Sin contraseñas: el usuario escribe su nombre y elige rol.
+**Email y contraseña**, con Supabase Auth. Es el mismo esquema que `repara.nekoescalada.com`:
+sesión de Supabase, roles en su propia tabla `user_roles` y `has_role()` dentro de las políticas RLS.
 
-- **Alumno** — acceso directo.
-- **Entrenador** — requiere el código de sala, que se da en recepción (no se publica aquí).
+La pantalla de acceso tiene tres modos: **Entrar**, **Crear cuenta** y **He olvidado mi contraseña**
+(envía un email con enlace a `/reset`). Todos los campos de contraseña llevan el ojo de ver/ocultar.
+`/reset` es la única ruta accesible sin sesión, porque es donde aterriza el enlace del email.
 
-El perfil se guarda en la tabla `profiles` y su id en `localStorage` (`spraywall_user_id`),
-así que la app entra directa en visitas posteriores. Hay un "Cambiar de usuario" en el perfil.
+Todo el mundo se registra como **alumno**. El rol de **entrenador** lo concede el administrador desde
+`/entrenador`; **ya no hay código de sala**. El admin se siembra por email en `handle_new_user`
+(`diego@nekoescalada.com`) y no por «el primero que llegue», porque la app ya estaba publicada y se
+habría registrado antes cualquier alumno.
 
-> Es un tablón interno de la sala, no un sistema con datos sensibles: por eso RLS es permisiva
-> y no hay auth con contraseña. Si en el futuro se quiere control de acceso real, el punto de
-> cambio es `UserProvider` + activar Supabase Auth.
+### Reclamar el perfil antiguo
+
+Antes no había cuentas: el perfil se creaba escribiendo un nombre y el id quedaba en `localStorage`.
+Esos 64 perfiles, con sus bloques y sus encadenes, **no se han tocado**. La pieza que lo hace posible
+es que `profiles.id` sigue siendo la identidad de la app y la cuenta se *enlaza* con dos columnas
+nuevas, `profiles.user_id` (→ `auth.users`) y `profiles.email`. Así `boulders.creador_id` y
+`ascents.user_id` no se reescriben nunca.
+
+Al registrarse con **el mismo nombre exacto** de antes, el trigger `handle_new_user` adopta ese perfil
+(el más antiguo con `user_id is null`) y quien se registra recupera su historial. El formulario lo
+avisa según se escribe el nombre —«recuperarás sus 6 encadenes y sus 3 bloques»— consultando
+`perfil_por_nombre()`, que desempata con el mismo criterio que el trigger. Si el nombre ya tiene
+cuenta, el botón de crear cuenta se deshabilita: dos personas con el mismo nombre romperían justo
+esto.
+
+> Al reclamar un perfil se fuerza `rol = 'alumno'`. Que alguien se registre con el nombre de un
+> entrenador antiguo no le puede dar sus permisos.
+
+`user_roles` es la fuente de verdad del rol; `profiles.rol` es una copia que mantiene al día un
+trigger, para que siga funcionando todo lo que ya pintaba con ese campo (`creador_rol`, la estrella
+del creador, los filtros del muro).
+
+---
+
+## El grado: el del creador y el de la comunidad
+
+Conviven dos grados y los dos se ven a la vez en la ficha del bloque.
+
+**El del creador** es `boulders.grado`. Se puede cambiar después de publicar, en dos toques, con el
+lapicero que hay junto a la pastilla «Creador» —sin pasar por el editor de presas—, y **solo lo puede
+tocar quien montó el bloque**. El lapicero grande de la cabecera sigue abriendo el editor completo, y
+también sale solo para el creador.
+
+**El de la comunidad** es la **mediana** de las propuestas de `grade_votes`. Mediana y no media: así
+el resultado es siempre un grado real de la escala y una propuesta exagerada no descuadra el
+conjunto. Con un número par de votos se queda con el más bajo de los dos centrales
+(`percentile_disc(0.5)`).
+
+Vota **solo quien tiene el encadene registrado**, y **el creador no vota el suyo**: su opinión ya es
+`boulders.grado`. Las dos condiciones están en la política RLS de `grade_votes`, no solo en la
+interfaz. Si alguien deshace su encadene, un trigger sobre `ascents` le retira también la propuesta.
+
+Donde hay que elegir un grado solo —el filtro y el orden del muro, la pirámide y el grado máximo de
+«Mi progreso»— se usa `gradoEfectivo()`: el de la comunidad si hay votos, y si no el del creador. Es
+el mismo patrón que `fotoDeBloque()`. En la lista del muro, cuando el consenso difiere del grado del
+creador, aparece detrás un iconito de comunidad.
 
 ---
 
 ## Modelo de datos
 
 ```
-profiles  id uuid pk · nombre text · rol text ('entrenador'|'alumno') · created_at
-walls     id uuid pk · nombre text · angulo int · imagen text · orden int
-boulders  id uuid pk · wall_id fk · nombre text · grado text · creador_id fk
-          creador_nombre text · creador_rol text · descripcion text null
-          holds jsonb · numerar bool (default false) · created_at
-          imagen text null · holds_previos jsonb null · imagen_previa text null
-ascents   id uuid pk · boulder_id fk · user_id fk · user_nombre text · created_at
-          UNIQUE (boulder_id, user_id)
+profiles    id uuid pk · nombre text · rol text ('entrenador'|'alumno') · created_at
+            user_id uuid unique → auth.users null · email text null
+user_roles  id uuid pk · user_id uuid → auth.users · role app_role ('alumno'|'entrenador'|'admin')
+            created_at · UNIQUE (user_id, role)
+walls       id uuid pk · nombre text · angulo int · imagen text · orden int
+boulders    id uuid pk · wall_id fk · nombre text · grado text · creador_id fk
+            creador_nombre text · creador_rol text · descripcion text null
+            holds jsonb · numerar bool (default false) · created_at
+            imagen text null · holds_previos jsonb null · imagen_previa text null
+            grado_consenso text null · votos_grado int (default 0)
+ascents     id uuid pk · boulder_id fk · user_id fk · user_nombre text · created_at
+            UNIQUE (boulder_id, user_id)
+grade_votes id uuid pk · boulder_id fk · user_id fk (→ profiles) · grado text
+            created_at · updated_at · UNIQUE (boulder_id, user_id)
 ```
+
+`profiles.user_id` y `profiles.email` son las columnas que enlazan la cuenta de Supabase Auth con el
+perfil de siempre; están a `null` en los perfiles anteriores a las cuentas, que es justo lo que los
+deja disponibles para reclamar.
+
+`boulders.grado` es el grado **del creador** y no lo cambia nadie más; `grado_consenso` y
+`votos_grado` son la mediana de `grade_votes` y su recuento, desnormalizados por trigger para que la
+lista del muro no haga una consulta por bloque (en la sala hay mala cobertura).
 
 `holds` guarda las presas con **coordenadas normalizadas 0..1** relativas a la imagen, de modo
 que son independientes de la resolución, del zoom y del tamaño de pantalla:
@@ -236,7 +322,7 @@ que son independientes de la resolución, del zoom y del tamaño de pantalla:
 ```
 
 `walls.imagen` admite dos formas: un nombre de archivo (`spraywall.jpg`, que `imagenUrl()` resuelve
-a `/walls/…`, para las 4 fotos que viven en `public/`) o una **URL absoluta** del bucket de Storage,
+a `/walls/…`, para las fotos que viven en `public/`) o una **URL absoluta** del bucket de Storage,
 que es lo que guarda el panel de entrenador al subir una foto nueva.
 
 `boulders.imagen` hace lo mismo para un bloque concreto: si está vacía —lo normal— el bloque se
@@ -284,13 +370,14 @@ a la base de datos nunca se cachean.
 
 | Ruta | Pantalla |
 |---|---|
-| `/` | Muros — rejilla con los 4 muros y su nº de bloques |
+| `/` | Muros — rejilla con los muros y su nº de bloques (la panorámica, a lo ancho) |
 | `/muro/$wallId` | Lista de bloques del muro, con todos los filtros |
 | `/bloque/$boulderId` | Visor del bloque + botón "¡Encadenado!" |
 | `/crear` | Elegir en qué muro montar el bloque |
 | `/crear/$wallId` | Editor: marcar presas sobre la foto |
 | `/progreso` | Ticklist: métricas, pirámide de grados e historial |
-| `/entrenador` | Panel de entrenador: cambiar la foto de fondo de un muro |
+| `/entrenador` | Panel de entrenador: cambiar la foto de un muro; y, para el admin, gestionar roles |
+| `/reset` | Poner una contraseña nueva. Única ruta accesible sin sesión |
 | `/instalar` | QR, instalación como PWA y descarga del QR imprimible |
 | `/ayuda` | Guía de uso dentro de la app, en secciones plegables |
 
