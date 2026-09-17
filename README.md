@@ -41,18 +41,24 @@ suben a la app: lado mayor 2400 px, JPEG calidad 82.
 | `muro-0.jpg` | Panel 0º | 0º | 2400x2263 |
 | `muro-5.jpg` | Panel 5º | 5º | 1769x2400 |
 | `muro-15.jpg` | Panel 15º | 15º | 2165x2400 |
-| `panoramica.jpg` | Panorámica de toda la sala | — | 2142x978 |
+| `panoramica-big.jpg` | Panorámica de toda la sala | — | 8000x2595 |
 
 Cada foto tiene una proporción distinta, así que el lienzo **no** asume ninguna: lee
 `naturalWidth/naturalHeight` al cargar la imagen y aplica ese aspecto. Se puede sustituir
 cualquier foto por otra de proporción diferente sin tocar código.
 
-La **panorámica** es la excepción con la que se probó eso de verdad: es apaisada (relación 2,19)
+La **panorámica** es la excepción con la que se probó eso de verdad: es apaisada (relación 3,08)
 mientras que las otras cuatro son verticales. Su tarjeta ocupa el ancho completo en la pantalla de
 Muros y no muestra ángulo, y al abrirla la foto arranca con el zoom puesto para que llene la altura
 del móvil y la sala se recorra a lo ancho; alejando se ve entera. Eso lo decide la columna
 `walls.panoramico`, no el aspecto de la imagen: el aspecto no se conoce hasta que la foto ha
-cargado, y la maquetación de la tarjeta se decide antes. La foto de ahora es provisional.
+cargado, y la maquetación de la tarjeta se decide antes.
+
+Va a **8000 px de ancho**, mucho más que los 2400 de los demás muros, y a propósito: en una foto de
+toda la sala cada panel ocupa una fracción del encuadre, así que hace falta esa resolución para
+poder acercarse y distinguir las presas una a una. Sale de `Imagenes/PanoSprayBIG.jpg`
+(11592x3760), reescalada con bicúbica de alta calidad y JPEG 92: 4,3 MB. No se genera con el script
+de los otros muros, que trabaja a 2400 px.
 
 Para regenerar las imágenes optimizadas desde las recortadas:
 
@@ -74,7 +80,8 @@ Foto fija de alta resolución con **zoom y desplazamiento**, y marcadores sobre 
 bloque. Las coordenadas normalizadas se convierten a píxeles de la caja del lienzo, así que los
 marcadores quedan anclados a su presa y escalan con el zoom.
 
-El zoom (1x a 8x) se maneja de tres formas: pinza, doble toque y una **barra de zoom vertical** en
+El zoom (de 1x a 8x, y hasta 16x en el muro panorámico, que arranca ya ampliado) se maneja de tres
+formas: pinza, doble toque y una **barra de zoom vertical** en
 el lado derecho del lienzo, con botones + y −. El recorrido de la barra es **geométrico**
 (`escala = 8^t`, con `t` de 0 a 1), no lineal: así el punto medio es ×2,8 y los saltos se perciben
 iguales en todo el recorrido. Antes solo había pinza y doble toque, y se pasaba de estar demasiado

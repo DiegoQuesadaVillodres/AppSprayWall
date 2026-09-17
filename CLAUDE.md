@@ -67,7 +67,7 @@ resolución, zoom y tamaño de pantalla. La capa de dibujo las convierte a **pí
 (`h.x * caja.w`, `h.y * caja.h`) para quedar ancladas a su presa.
 
 **2. Aspecto dinámico.** Las fotos tienen proporciones distintas: las 4 de muro son verticales
-(2400x2295, 2400x2263, 1769x2400, 2165x2400) y la panorámica de la sala es apaisada. El lienzo lee
+(2400x2295, 2400x2263, 1769x2400, 2165x2400) y la panorámica de la sala es apaisada (8000x2595). El lienzo lee
 `naturalWidth/naturalHeight` en el `onLoad` y aplica ese aspecto con `object-contain`. Nunca asumir
 una proporción fija ni usar `object-fill`: deforma.
 
@@ -260,13 +260,25 @@ aro en vez de contorno es el comportamiento previsto, no una regresión.
 animación la librería escribe el `transform` en el DOM mientras el `onTransform` provoca un
 re-render de React que lo sobrescribe: el indicador subía y la foto no se movía. Por lo mismo, el
 indicador y la posición de la barra se leen **solo** de la escala real que llega por `onTransform`,
-nunca de un valor optimista. El recorrido es geométrico (`escala = 8^t`).
+nunca de un valor optimista. El recorrido es geométrico (`escala = zoomMax^t`).
+
+**El máximo no es el mismo en todos los muros**: `ZOOM_MAX = 8` y `ZOOM_MAX_PANORAMICO = 16`, y el
+efectivo (`zoomMax = panoramico ? … : …`) tiene que ir **a la vez** en `maxScale`, en el tope de
+`aplicarEscala`, en el clamp del zoom inicial y en `aEscala`/`aPosicion`, que lo reciben por
+parámetro. Si la barra calcula con un máximo y el lienzo permite otro, el indicador y la foto dejan
+de corresponderse, que es el mismo fallo que provocaba la animación.
 
 **6. El muro panorámico arranca con el zoom puesto.** La prop `panoramico` (que viene de la columna
 `walls.panoramico`, no de medir el aspecto de la foto) hace que, una vez conocidos el aspecto real y
 la caja, se aplique `alto / caja.h`: la foto llena la altura del móvil y la sala se recorre a lo
 ancho, en vez de verse como una tira diminuta en medio de la pantalla. **Solo una vez por imagen**
 —si el usuario aleja, no se le vuelve a imponer— y sin animación, por lo mismo que la barra de zoom.
+
+Y por eso su zoom máximo es 16 y no 8: **arranca ya ampliada** (×1,4 en escritorio, ~×3,8 en móvil),
+así que con el tope de 8 le quedaban dos ampliaciones escasas por encima de lo que se ve al abrir.
+El 16 está emparejado con la foto, no elegido al azar: a ×16 se dibuja a 7168 px de ancho sobre los
+8000 reales, o sea justo antes de agotar la resolución. Subir el tope sin subir la foto solo amplía
+píxeles borrosos. Medido en producción sobre la matriz del DOM: 1,364 → 16, y la foto crece con él.
 
 Que sea una columna y no el aspecto de la imagen es deliberado: el aspecto no se conoce hasta que la
 foto ha cargado, y hay decisiones que se toman antes (la tarjeta del muro ocupa las dos columnas de
