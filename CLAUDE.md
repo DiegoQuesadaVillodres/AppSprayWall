@@ -80,6 +80,18 @@ Además: **la zona sensible al toque no depende del tamaño del marcador**. Es u
 `RADIO_TOQUE = RADIO * 2` (`RADIO = 0.0175` del ancho, el radio del círculo *original*) centrado en
 la coordenada de la presa, y se mantiene aunque el dibujo encoja, para poder corregir con el dedo.
 
+**3 bis. Las constantes geométricas se escalan con `walls.escala_presa`.** Todas van en fracción del
+ancho de la foto, y eso solo vale mientras el encuadre sea un muro: una presa es el 3 % del ancho en
+las cuatro fotos verticales, pero el **0,9 %** en la panorámica, que abarca la sala entera. Sin
+corregirlo, el claro medía 240 px de foto para presas de 70, y el radio de captura, 280 px, con las
+presas separadas ~100: **el segundo toque borraba la presa anterior en vez de añadir una nueva**.
+
+La columna dice cuánto ocupa una presa típica en esa foto (0.03 en los muros verticales, 0.009 en la
+panorámica), llega al lienzo por la prop `escalaPresa` y de ahí sale `k = escalaPresa / 0.03`, que
+multiplica a `RADIO_TOQUE`, a `RADIO_FOCO` y a la cascada de ventanas de `medidas.ts`. **Con `k = 1`
+el resultado es el de siempre**, y eso es lo que hay que preservar en cualquier cambio: el dato es
+explícito y no deducido del aspecto de la foto, por lo mismo que `panoramico`.
+
 **4. Las presas se iluminan; el resto del muro se apaga.** No hay marcador *encima* de la presa:
 un `<svg>` superpuesto pinta un rectángulo negro al `OSCURIDAD = 0.72` recortado por una `<mask>` con
 un claro difuminado por presa (`RADIO_FOCO = 0.030` del ancho, `DIFUMINADO = 0.35` del radio), y en
@@ -141,8 +153,8 @@ En ese modo, tocar una presa solo la **selecciona** (no borra ni cambia el tipo)
 se marca con un aro blanco discontinuo por fuera del de color, al 118 % — por fuera y no encima,
 para no tapar justo lo que se está ajustando.
 
-`src/lib/medidas.ts` mide cada presa **en el navegador** (canvas de 900 px, coordenadas 0..1, nada
-guardado en la base de datos) y devuelve una **cascada de recursos**, en este orden:
+`src/lib/medidas.ts` mide cada presa **en el navegador** (coordenadas 0..1, nada guardado en la base
+de datos) y devuelve una **cascada de recursos**, en este orden:
 
 1. **Contorno**: el borde real de la región (cóncavo incluido), como polígono de 8 a 28 vértices.
 2. **Elipse** por momentos de la región (centroide, covarianza, semiejes a 2 sigma y ángulo).
@@ -151,6 +163,24 @@ guardado en la base de datos) y devuelve una **cascada de recursos**, en este or
 4. **Círculo con la mediana de radios del bloque**, para las presas que no se han podido medir. Este
    retoque es **por bloque y no entra en la caché** (la caché guarda la medida cruda de cada presa).
 5. **`null`** —ya casi nunca—, y entonces el lienzo dibuja el círculo de `RADIO_FOCO` con su aro.
+
+**Se mide sobre un recorte de la foto a resolución nativa, no sobre la foto entera reducida.** Antes
+se decodificaba toda la imagen a un canvas de 900 px de ancho y todas las presas se medían ahí; en
+la panorámica eso dejaba una presa de 70 px de foto en **7,9 px de trabajo**, por debajo de
+`MIN_SEMIEJE = 6`, y el contorno que salía tenía 9 vértices: un churro, no una silueta. Ahora se
+cachea la **imagen decodificada** por URL y cada presa recorta su ventana con `drawImage(sx, sy, sw,
+sh, …)` sobre un lienzo de **lado fijo `LADO = 252`**.
+
+Ese 252 es la pieza que sostiene el cambio, y no es arbitrario: es justo el lado que ocupaba la
+ventana mayor dentro del canvas de 900 (`0.14 * 900 * 2`). Manteniéndolo, la relación entre píxeles
+de trabajo y píxeles de foto es **idéntica a la de antes en un muro normal**, así que `MAX_SEMIEJE`,
+`MIN_SEMIEJE`, `TOL_SIMPLIFICADO` y los topes de vértices siguen valiendo sin recalibrar. Las tres
+ventanas de la cascada dejan de recortar la foto y pasan a ser **subventanas del lienzo**
+(`RADIOS_REL`, fracción del semilado): sobre un muro de 2400 px dan los mismos 50, 81 y 126 px de
+antes. La presa sigue midiendo ~33 px de trabajo en el Spray Wall y pasa de 7,9 a ~26 en la
+panorámica. Medido en producción antes y después: «Hori», 11 contornos de 11 en los dos casos;
+«Alargadera», que tiene una presa a `x = 0.004` —pegada al borde, donde el recorte se sale de la
+foto y lo que falta entra como transparente—, 4 contornos y 3 aros en los dos casos.
 
 **La regla que no se puede romper: ninguna presa se queda sin aro de color, nunca.** Ni cuando falla
 la detección ni mientras se calcula. Esa fue la queja real de la sala: la primera versión no dibujaba
@@ -195,7 +225,8 @@ vez de la presa. Y el cierre tiene que ser neutro: con 2+1 quedaba una dilataci�
 ese píxel de más es justo el que tiende un puente entre dos presas separadas por una línea fina de
 sombra. La elipse de reserva sigue con su cierre de 1+1.
 
-**La ventana de búsqueda va en cascada: `RADIOS_MAX = [0.055, 0.09, 0.14]` del ancho.** Con una sola
+**La ventana de búsqueda va en cascada: `RADIOS_MAX = [0.055, 0.09, 0.14]` del ancho** (por `k`, y
+hoy aplicadas como fracción del semilado del recorte). Con una sola
 ventana de 0.055 —101 px sobre el canvas de 900— una presa grande no cabe: o se sale por los bordes,
 o se pasa del `MAX_AREA`, y los dos filtros la tiran. Medido sobre la foto del Spray Wall, con 15
 presas grandes reales: **0 contornos con una ventana, 9 con la cascada**, y ninguna pérdida en las
@@ -232,7 +263,7 @@ Los descartes, todos medidos y no inventados:
   0,94 en todas las buenas.
 - `MIN_SOLIDEZ = 0.72` sobre el contorno: descarta el reloj de arena, o sea dos presas y el puente.
 - **El punto que marcó el usuario tiene que caer dentro** de la forma, y para la elipse además
-  semieje mayor ≤ 46 px de los 900, menor ≥ 6 y relación entre ejes ≤ 4.
+  semieje mayor ≤ 46 px del lienzo de trabajo, menor ≥ 6 y relación entre ejes ≤ 4.
 
 Dos trampas del dibujo:
 
@@ -248,9 +279,10 @@ el bucket no lo permitiera, `getImageData` lanza `SecurityError` y *todas* las p
 círculo —canvas contaminado, no fallo del algoritmo—), y el resultado se **cachea en memoria**, así
 que recargar la página lo recalcula.
 
-La caché va **por presa** (`imagen|x|y`), y el `ImageData` de cada foto se guarda aparte para
-decodificarla una sola vez. Iba por imagen + lista completa de presas, y con el editor midiendo eso
-volvía a medirlo todo en cada toque.
+La caché va **por presa** (`imagen|escala|x|y` — la escala entra en la clave porque cambiarla cambia
+la medida), y la **imagen decodificada** de cada foto se guarda aparte para no volver a
+descargarla ni decodificarla. Iba por imagen + lista completa de presas, y con el editor midiendo
+eso volvía a medirlo todo en cada toque.
 
 Esto es visión artificial sobre fotos de sala: **el resultado depende de la foto**. Con luz uniforme
 y presas saturadas acierta casi siempre; contra madera clara, no. Que una presa concreta salga con
@@ -297,6 +329,7 @@ profiles    id · nombre · rol ('entrenador'|'alumno') · created_at
 user_roles  id · user_id → auth.users · role ('alumno'|'entrenador'|'admin')
             created_at · UNIQUE(user_id, role)
 walls       id · nombre · angulo · imagen · orden · panoramico bool  -- 5 filas
+            escala_presa real (0.03 por defecto, 0.009 en la panorámica)
 boulders    id · wall_id · nombre · grado · creador_id · creador_nombre
             creador_rol · descripcion · holds jsonb · numerar bool · created_at
             imagen · holds_previos jsonb · imagen_previa    -- las 3 anulables
@@ -314,7 +347,10 @@ marcador muestra el orden o solo `I`/`T`/`IT`: los entrenadores no querían una 
 el orden lo decide quien escala.
 
 `walls.panoramico` marca la foto apaisada de toda la sala (el quinto muro, `angulo` 0). Es un dato,
-no una deducción del aspecto de la imagen: ver el punto 6 de `WallCanvas`.
+no una deducción del aspecto de la imagen: ver el punto 6 de `WallCanvas`. `walls.escala_presa` es
+su pareja para el marcado (punto 3 bis): cuánto ocupa una presa en esa foto. **Un muro nuevo con un
+encuadre distinto del de un panel necesita su valor**, o el claro y la zona sensible saldrán
+descolocados aunque el código esté bien.
 
 `boulders.imagen` **fija la foto de ese bloque**: si es `null` — el caso normal — se usa la del muro.
 Solo se rellena cuando un bloque se queda anclado a una foto anterior, y el helper `fotoDeBloque()`

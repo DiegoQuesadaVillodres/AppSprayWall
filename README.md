@@ -126,6 +126,18 @@ planta en el primer salto brusco, que es la mancha escapándose a la presa de al
 anterior —la primera que pasara— media presa iluminada le ganaba a la presa entera. No se guarda
 nada en la base de datos.
 
+Para mirar la presa, la app **recorta ese trozo de la foto a tamaño real** en vez de trabajar sobre
+una copia reducida de la foto entera. Es lo que hace que funcione igual en la panorámica: ahí una
+presa ocupa una parte minúscula del encuadre, y sobre la copia reducida llegaba a la detección con
+ocho píxeles, así que salía un churro en vez de una silueta. Con el recorte llega con el mismo
+tamaño que en un muro normal, y los muros de siempre no notan el cambio: en un bloque de once
+presas del Spray Wall salen once contornos antes y después.
+
+Cada muro dice además **cuánto ocupa una presa en su foto** (`walls.escala_presa`), y con ese dato
+se ajustan el tamaño del claro y la zona sensible al toque. Sin él, en la panorámica el claro se
+comía medio panel y, al marcar una presa junto a otra, el toque alcanzaba a la anterior y la
+borraba en lugar de añadir la nueva.
+
 Según lo que consigue reconocer, la marca es una de estas, siempre del color del tipo de presa:
 
 1. **La línea del contorno**, siguiendo la forma de la presa. Es el caso bueno: unas dos de cada
@@ -297,6 +309,7 @@ profiles    id uuid pk · nombre text · rol text ('entrenador'|'alumno') · cre
 user_roles  id uuid pk · user_id uuid → auth.users · role app_role ('alumno'|'entrenador'|'admin')
             created_at · UNIQUE (user_id, role)
 walls       id uuid pk · nombre text · angulo int · imagen text · orden int
+            panoramico bool (default false) · escala_presa real (default 0.03)
 boulders    id uuid pk · wall_id fk · nombre text · grado text · creador_id fk
             creador_nombre text · creador_rol text · descripcion text null
             holds jsonb · numerar bool (default false) · created_at
