@@ -5,3 +5,6 @@ desktop.ini
 *.tmp
 __pycache__/
 *.pyc
+
+# Capturas de trabajo, no ilustran nada del proyecto
+Imagenes/Ejemplos/
