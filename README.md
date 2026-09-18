@@ -54,6 +54,11 @@ del móvil y la sala se recorra a lo ancho; alejando se ve entera. Eso lo decide
 `walls.panoramico`, no el aspecto de la imagen: el aspecto no se conoce hasta que la foto ha
 cargado, y la maquetación de la tarjeta se decide antes.
 
+**Al abrir un bloque de la panorámica, la app encuadra sola su zona de la pared**, con margen
+alrededor para que se vea dónde está. Si no, el bloque quedaba como cuatro puntitos de luz en una
+sala entera a oscuras: en una foto de toda la sala, un bloque ocupa una parte pequeña del encuadre.
+Desde ahí se puede alejar para situarse o acercar hasta las presas, como en cualquier otro muro.
+
 Va a **8000 px de ancho**, mucho más que los 2400 de los demás muros, y a propósito: en una foto de
 toda la sala cada panel ocupa una fracción del encuadre, así que hace falta esa resolución para
 poder acercarse y distinguir las presas una a una. Sale de `Imagenes/PanoSprayBIG.jpg`

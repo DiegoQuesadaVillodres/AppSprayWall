@@ -71,6 +71,18 @@ resolución, zoom y tamaño de pantalla. La capa de dibujo las convierte a **pí
 `naturalWidth/naturalHeight` en el `onLoad` y aplica ese aspecto con `object-contain`. Nunca asumir
 una proporción fija ni usar `object-fill`: deforma.
 
+**La trampa que lleva dentro: hasta el `onLoad`, la caja es provisionalmente CUADRADA** (`ratio =
+aspecto ?? 1`). Nada que dependa de la geometría real puede calcularse en esa ventana, y no basta
+con esperar a que `aspecto` tenga valor: la `caja` se recalcula en un `useLayoutEffect` posterior,
+así que hay un render con el aspecto nuevo y **la caja vieja**. Ha morfido dos veces:
+
+- Un toque en ese momento normalizaba `x`/`y` sobre un cuadrado y creaba la presa en un sitio que
+  nadie había tocado; por eso `onPointerUp` descarta el toque si `aspecto` es `null` o no hay caja,
+  y el lienzo tapa ese rato con el aviso «Cargando la foto del muro…».
+- El encuadre del bloque panorámico se calculó con la caja cuadrada y salió a ×1,4 en vez de ×1,9;
+  además se marcaba como aplicado, así que no se corregía nunca. Lo que hay que comprobar es que
+  **`caja.w / caja.h` concuerde con `aspecto`**, y salir sin marcar nada si todavía no concuerdan.
+
 **3. Desambiguación de gestos.** Un toque cuenta como "marcar presa" solo si el dedo se movió
 < 10 px, en < 300 ms y sin un segundo puntero en pantalla. Es la queja número uno de los usuarios
 de Retro Flash (el zoom se confunde con toques) y está resuelta explícitamente. No tocarlo sin
@@ -102,13 +114,27 @@ Antes era un pin de gota con bulbo, y antes de eso un círculo centrado sobre la
 `CapaClara` pinta una SEGUNDA copia de la foto (`<image href={imagen}>`, la misma URL, la sirve la
 caché) recortada a las presas y pasada por `feComponentTransfer` lineal (`slope 1.45`,
 `intercept 0.05`) más un `saturate 1.2`. Encaja píxel a píxel porque el `viewBox` va en píxeles de
-la caja y la caja tiene el aspecto de la foto. Dos reglas:
+la caja y la caja tiene el aspecto de la foto. Tres reglas:
 
 - **Las dos máscaras salen de la misma función `FormasPresas`**, con el color y el gradiente como
   parámetros: la del velo lleva las presas en negro sobre blanco y la de la capa clara al revés. Si
   se tocan por separado, el claro y el aclarado dejan de coincidir y se ve un halo.
 - **`CapaClara` va memoizada y no puede depender de `escala`.** El filtro es caro; si sus props
   cambiaran en cada `onTransform`, el navegador lo recalcularía en cada fotograma del zoom.
+- **Los dos filtros de `CapaClara` no se acotan igual, y confundirlos cuelga el navegador.** El de
+  aclarado (`…-aclarar`) se aplica **una vez** a la `<image>`: ese es el caro, y va acotado con
+  `filterUnits="userSpaceOnUse"` a `regionPresas` —la envolvente de las presas, memoizada y sin
+  depender de `escala`— más un `clipPath` a la misma región. El del difuminado (`…-difuso-inv`), en
+  cambio, lo lleva **cada polígono de presa** dentro de la máscara, así que su región tiene que
+  seguir siendo relativa al objeto (`objectBoundingBox`, `-100 % / 300 %`). Acotarlo a la envolvente
+  del bloque convierte N superficies pequeñas en N superficies del tamaño del bloque: con 9 presas
+  dejó el visor de la panorámica a 0x0 y la página sin responder.
+
+`regionPresas` sale de la **`bbox` medida de cada presa** cuando existe —escalada alrededor del
+punto marcado, igual que el contorno, y ampliada solo por el trazo difuminado—, y de un margen
+estimado (`radioFoco × tamaño × 2.5`) en las que no se han podido medir. Con el margen estimado a
+secas, una presa grande con el punto descentrado se sale de la región y su aclarado se corta en
+línea recta.
 
 Tres cosas que no se ven a primera vista:
 
@@ -305,6 +331,20 @@ de corresponderse, que es el mismo fallo que provocaba la animación.
 la caja, se aplique `alto / caja.h`: la foto llena la altura del móvil y la sala se recorre a lo
 ancho, en vez de verse como una tira diminuta en medio de la pantalla. **Solo una vez por imagen**
 —si el usuario aleja, no se le vuelve a imponer— y sin animación, por lo mismo que la barra de zoom.
+
+**Y si el bloque tiene presas, en vez de llenar la altura se encuadra el bloque**: la escala sale de
+meter `regionPresas` en el hueco con una holgura de 1,65, para que se vea la pared alrededor y no
+las presas pegadas al borde. Sin esto el foco no comunicaba nada en la panorámica: apagar la sala
+entera al 72 % para iluminar cuatro presas deja un rectángulo negro con puntitos. Dos detalles que
+costaron dos intentos:
+
+- **El encuadre no puede calcularse hasta que la caja concuerda con el aspecto** (ver el punto 2).
+  Con la caja provisional cuadrada la escala salía a ×1,4 en vez de ×1,8, y como se marcaba el
+  encuadre como aplicado, ya no se corregía.
+- **El desplazamiento solo tiene sentido en el eje donde el contenido escalado desborda el hueco.**
+  En el otro hay que centrar: si no, la foto se queda pegada a un borde con toda la banda negra al
+  otro lado. Medido en producción con un bloque real: escala ×1,79, centro de la vista en el 0,363
+  del ancho (el centro exacto del bloque) y bandas de 59 px iguales arriba y abajo.
 
 Y por eso su zoom máximo es 16 y no 8: **arranca ya ampliada** (×1,4 en escritorio, ~×3,8 en móvil),
 así que con el tope de 8 le quedaban dos ampliaciones escasas por encima de lo que se ve al abrir.
