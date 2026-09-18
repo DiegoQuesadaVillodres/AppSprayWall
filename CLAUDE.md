@@ -62,7 +62,7 @@ Ambos scripts solo generan archivos en `Imagenes/`. **Subirlos después al proye
 viven las decisiones que sostienen todo lo demás.
 
 **1. Coordenadas normalizadas 0..1.** Las presas se guardan en `boulders.holds` (JSONB) como
-`{x, y, tipo}` (más un `tamano` opcional) con `x`/`y` relativos a la imagen. Son independientes de
+`{x, y, tipo}` (más `tamano` y `forma` opcionales) con `x`/`y` relativos a la imagen. Son independientes de
 resolución, zoom y tamaño de pantalla. La capa de dibujo las convierte a **píxeles de la caja**
 (`h.x * caja.w`, `h.y * caja.h`) para quedar ancladas a su presa.
 
@@ -179,8 +179,26 @@ En ese modo, tocar una presa solo la **selecciona** (no borra ni cambia el tipo)
 se marca con un aro blanco discontinuo por fuera del de color, al 118 % — por fuera y no encima,
 para no tapar justo lo que se está ajustando.
 
-`src/lib/medidas.ts` mide cada presa **en el navegador** (coordenadas 0..1, nada guardado en la base
-de datos) y devuelve una **cascada de recursos**, en este orden:
+**La silueta se guarda con el bloque.** Cada presa admite `forma` (los semiejes, el ángulo y, si lo
+hubo, el contorno y su `bbox`, todo normalizado y redondeado a 4 decimales). La escribe el editor al
+publicar o al actualizar, con la medida que el creador está viendo, y **una presa con `forma` ya no
+se mide**: el lienzo la usa tal cual. Así todo el mundo ve la misma silueta que aprobó quien montó
+el bloque, en vez de una recalculada en cada móvil. Cuatro reglas:
+
+- **Donde no hay medida no se inventa una.** Para eso existe `medirPresasCrudas`, que devuelve la
+  medida sin el retoque por bloque: si sale `null`, la presa se guarda sin `forma` y se seguirá
+  midiendo al abrirla, con su cascada de reservas.
+- **Los bloques anteriores no tienen `forma`** y se comportan exactamente como antes. Si su creador
+  los edita y los vuelve a guardar, pasan al modo nuevo.
+- **Al reajustar un muro («Solo he añadido presas»), `transformarHolds` BORRA la `forma`.** Los
+  vértices están en coordenadas de la foto vieja y quedarían desplazados respecto a su presa, que es
+  peor que no tener silueta; sin ella se vuelven a medir sobre la foto nueva. «Deshacer reajuste» no
+  necesita nada especial, porque `holds_previos` guarda las presas con sus formas originales.
+- El redondeo a 4 decimales no es cosmético: con 28 vértices por presa, un bloque de once presas
+  engorda varios kilobytes en la base de datos.
+
+`src/lib/medidas.ts` mide **en el navegador** las presas que no traen `forma` (coordenadas 0..1) y
+devuelve una **cascada de recursos**, en este orden:
 
 1. **Contorno**: el borde real de la región (cóncavo incluido), como polígono de 8 a 28 vértices.
 2. **Elipse** por momentos de la región (centroide, covarianza, semiejes a 2 sigma y ángulo).
@@ -302,8 +320,9 @@ Dos trampas del dibujo:
 
 Y dos cosas heredadas que siguen valiendo: **la imagen se carga con `crossOrigin="anonymous"`** (si
 el bucket no lo permitiera, `getImageData` lanza `SecurityError` y *todas* las presas caen al
-círculo —canvas contaminado, no fallo del algoritmo—), y el resultado se **cachea en memoria**, así
-que recargar la página lo recalcula.
+círculo —canvas contaminado, no fallo del algoritmo—), y lo que se mide se **cachea en memoria**,
+así que recargar la página lo recalcula. Eso vale para las presas sin `forma` guardada; las que la
+tienen no llegan a medirse.
 
 La caché va **por presa** (`imagen|escala|x|y` — la escala entra en la clave porque cambiarla cambia
 la medida), y la **imagen decodificada** de cada foto se guarda aparte para no volver a
@@ -379,10 +398,11 @@ grade_votes id · boulder_id · user_id (→ profiles) · grado · created_at ·
             UNIQUE(boulder_id, user_id)
 ```
 
-`holds` es `{x, y, tipo, tamano?}` con `tipo` en `inicio | mano | top | inicio-top`. El cuarto es
-para las travesías circulares (la misma presa es inicio y top) y **cuenta como inicio y como top** en
-todos los recuentos y validaciones. `tamano` es el multiplicador del foco del modo «Ajustar foco», y
-solo está presente cuando el creador lo ha cambiado. `numerar` (por defecto `false`) decide si el
+`holds` es `{x, y, tipo, tamano?, forma?}` con `tipo` en `inicio | mano | top | inicio-top`. El
+cuarto es para las travesías circulares (la misma presa es inicio y top) y **cuenta como inicio y
+como top** en todos los recuentos y validaciones. `tamano` es el multiplicador del foco del modo
+«Ajustar foco», y solo está presente cuando el creador lo ha cambiado. `forma` es la silueta medida
+al guardar (ver el punto 4 de `WallCanvas`): tampoco está siempre, y su ausencia significa «mídela». `numerar` (por defecto `false`) decide si el
 marcador muestra el orden o solo `I`/`T`/`IT`: los entrenadores no querían una secuencia impuesta,
 el orden lo decide quien escala.
 

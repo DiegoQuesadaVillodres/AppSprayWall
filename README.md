@@ -128,8 +128,13 @@ mirara el brillo se pararía en la sombra de la propia presa y marcaría solo la
 Prueba hasta ocho combinaciones por presa y, entre todas las que salen limpias, **se queda con la
 más estable**: ordenadas de menor a mayor, va aceptando mientras la mancha crezca poco a poco y se
 planta en el primer salto brusco, que es la mancha escapándose a la presa de al lado. Con la regla
-anterior —la primera que pasara— media presa iluminada le ganaba a la presa entera. No se guarda
-nada en la base de datos.
+anterior —la primera que pasara— media presa iluminada le ganaba a la presa entera.
+
+**La silueta que ve el creador al montar el bloque es la que se guarda**, y es la que verán todos.
+Antes se recalculaba en cada móvil que abría el bloque, así que dos personas podían ver siluetas
+distintas de las mismas presas. Por eso «Ajustar foco» importa: lo que dejes ahí es lo que queda.
+Las presas que no se dejan medir se guardan sin silueta y se siguen calculando al abrirlas, y los
+bloques anteriores a este cambio se comportan como siempre hasta que su creador los edite.
 
 Para mirar la presa, la app **recorta ese trozo de la foto a tamaño real** en vez de trabajar sobre
 una copia reducida de la foto entera. Es lo que hace que funcione igual en la panorámica: ahí una
